@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_rx/get_rx.dart';
-import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import 'package:ricmobile/controller/controller.dart';
+import 'package:ricmobile/services/firebase_services.dart';
 
 class CustomForm extends StatefulWidget {
   const CustomForm({required this.title, required this.isCitizen});
@@ -17,14 +17,20 @@ class CustomForm extends StatefulWidget {
 }
 
 class _CustomFormState extends State<CustomForm> {
+  FirebaseService? _firebaseService;
   final _formKey = GlobalKey<FormState>();
 
   late String _email;
   late String _password;
-  late String _mobileNumber;
+  String _mobileNumber = ' ';
   late String _otp;
   late String _name;
   late String _username;
+  @override
+  void initState() {
+    super.initState();
+    _firebaseService = GetIt.instance.get<FirebaseService>();
+  }
 
   Controller controller = Controller();
 
@@ -172,13 +178,14 @@ class _CustomFormState extends State<CustomForm> {
                                         BorderSide(color: Colors.black26)),
                               ),
                               validator: (value) {
-                                if (value!.isEmpty) {
-                                  return 'Please enter an email';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Please enter a valid email';
-                                }
-                                return null;
+                                // ignore: no_leading_underscores_for_local_identifiers
+                                bool _result = value!.contains(
+                                  RegExp(
+                                      r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"),
+                                );
+                                return _result
+                                    ? null
+                                    : "Please enter a valid email";
                               },
                               onSaved: (value) {
                                 _email = value!;
@@ -285,6 +292,10 @@ class _CustomFormState extends State<CustomForm> {
                               //   _mobileNumber = value!;
                               // },
                               keyboardType: TextInputType.phone,
+                              initialCountryCode: 'US',
+                              onChanged: (PhoneNumber phoneNumber) {
+                                _mobileNumber = phoneNumber.completeNumber;
+                              },
                             ),
 
                             // ...existing code...
@@ -389,16 +400,29 @@ class _CustomFormState extends State<CustomForm> {
     );
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState?.save();
-
-      // Perform further actions with the form data
-      // e.g., send data to the server, navigate to another screen
-      // print('Email: $_email');
-      // print('Password: $_password');
-      // print('Mobile Number: $_mobileNumber');
-      // print('OTP: $_otp');
+      String? result = await _firebaseService!.registerUser(
+        name: _name,
+        username: _username,
+        email: _email,
+        password: _password,
+        mobileNumber: _mobileNumber,
+        otp: _otp,
+      );
+      print(result!.length);
+      if (result.length != 0) {
+        Get.toNamed("/loginPage");
+      }
     }
   }
 }
+
+  // Perform further actions with the form data
+  // e.g., send data to the server, navigate to another screen
+  // print('Email: $_email');
+  // print('Password: $_password');
+  // print('Mobile Number: $_mobileNumber');
+  // print('OTP: $_otp');
+  // }
